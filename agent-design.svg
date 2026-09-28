@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1480" height="560" font-family="Inter, Helvetica, Arial, sans-serif" font-size="14">
+<rect width="1480" height="560" fill="#f7f6f2"/>
+<defs><marker id="a" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#555"/></marker></defs>
+<style>.b{fill:#fff;stroke:#1c2230;stroke-width:1.5;rx:8}.t{font-weight:700;font-size:15px}.s{fill:#555;font-size:12.5px}.tag{font-size:11px;font-weight:700}.ln{stroke:#555;stroke-width:1.5;marker-end:url(#a);fill:none}</style>
+
+<!-- Inputs -->
+<rect class="b" x="20" y="120" width="190" height="230" fill="#eef2f7"/>
+<text class="t" x="35" y="145">INPUTS</text>
+<text class="s" x="35" y="172">Nurse checklist (Cora)</text><text class="s" x="35" y="188">  facility · doc type · date range</text>
+<text class="s" x="35" y="214">Fax PDFs (SharePoint)</text><text class="s" x="35" y="230">  image scans, mixed quality</text>
+<text class="s" x="35" y="256">Case context (Cora)</text><text class="s" x="35" y="272">  patient, DOB, procedure</text>
+<text class="s" x="35" y="298">Historical cases</text><text class="s" x="35" y="314">  raw docs → final package</text>
+<text class="s" x="35" y="330">  (for eval, not runtime)</text>
+
+<!-- 1 OCR -->
+<rect class="b" x="240" y="150" width="170" height="130"/>
+<text class="tag" x="255" y="170" fill="#1e7a4d">1 · CODE / OCR</text>
+<text class="t" x="255" y="192">Read &amp; split</text>
+<text class="s" x="255" y="214">OCR every page</text>
+<text class="s" x="255" y="230">Detect doc boundaries</text>
+<text class="s" x="255" y="246">Per-page: text, facility,</text>
+<text class="s" x="255" y="262">date, OCR confidence</text>
+
+<!-- 2 classify -->
+<rect class="b" x="440" y="150" width="170" height="130"/>
+<text class="tag" x="455" y="170" fill="#5b3fb8">2 · LLM (small)</text>
+<text class="t" x="455" y="192">Label pages</text>
+<text class="s" x="455" y="214">doc type, service date,</text>
+<text class="s" x="455" y="230">patient match, signed?</text>
+<text class="s" x="455" y="246">Hard rule: name/DOB</text>
+<text class="s" x="455" y="262">mismatch → flag, never file</text>
+
+<!-- 3 match -->
+<rect class="b" x="640" y="120" width="200" height="190"/>
+<text class="tag" x="655" y="140" fill="#5b3fb8">3 · CODE + LLM</text>
+<text class="t" x="655" y="162">Match to checklist</text>
+<text class="s" x="655" y="184">Per item: filter candidates by</text>
+<text class="s" x="655" y="200">facility/date/type (code), then</text>
+<text class="s" x="655" y="216">LLM ranks + writes rationale</text>
+<text class="s" x="655" y="240">→ Found / Partial / Missing</text>
+<text class="s" x="655" y="256">→ pages, confidence, gap</text>
+<text class="s" x="655" y="272">Tuned: never a confident</text>
+<text class="s" x="655" y="288">wrong "Found"</text>
+
+<!-- 4 followup -->
+<rect class="b" x="870" y="80" width="200" height="90"/>
+<text class="tag" x="885" y="100" fill="#5b3fb8">4 · LLM</text>
+<text class="t" x="885" y="122">Draft follow-up</text>
+<text class="s" x="885" y="144">Missing/Partial → request</text>
+<text class="s" x="885" y="160">naming the exact gap</text>
+
+<!-- 5 suggest -->
+<rect class="b" x="870" y="200" width="200" height="120" fill="#f3effc"/>
+<text class="tag" x="885" y="220" fill="#5b3fb8">5 · LLM (large)</text>
+<text class="t" x="885" y="242">"Also relevant?"</text>
+<text class="s" x="885" y="264">Unmatched pages, same body</text>
+<text class="s" x="885" y="280">region / procedure history</text>
+<text class="s" x="885" y="296">Tuned for precision, opt-in</text>
+<text class="s" x="885" y="312">Cuttable</text>
+
+<!-- 6 human -->
+<path d="M1100,140 L1330,140 L1350,215 L1330,290 L1100,290 L1120,215 Z" fill="#fff5d6" stroke="#1c2230" stroke-width="1.5"/>
+<text class="tag" x="1130" y="165" fill="#a86400">6 · HUMAN</text>
+<text class="t" x="1130" y="187">Records team review</text>
+<text class="s" x="1130" y="209">Accept · set aside · put back</text>
+<text class="s" x="1130" y="225">Add · dismiss · send follow-up</text>
+<text class="s" x="1130" y="247">Sees pages + rationale</text>
+<text class="s" x="1130" y="263">Every action is reversible</text>
+
+<!-- outputs -->
+<rect class="b" x="1120" y="340" width="300" height="80" fill="#eef2f7"/>
+<text class="t" x="1135" y="362">OUTPUTS → Cora / SharePoint</text>
+<text class="s" x="1135" y="384">Package manifest (item → pages), open</text>
+<text class="s" x="1135" y="400">requests, status "ready for nurse review"</text>
+
+<!-- eval -->
+<rect class="b" x="240" y="400" width="850" height="130" fill="#e2f3e9"/>
+<text class="t" x="255" y="422">EVAL &amp; FEEDBACK</text>
+<text class="s" x="255" y="446">Offline: replay historical cases. Did agent "Found" pages cover the final package (recall)? Extra pages (precision)? Split by facility / doc type / OCR quality.</text>
+<text class="s" x="255" y="466">Online: intervention rate per checklist item (Poppy's bar ≤10%), split set-aside / put-back / dismiss. Nurse rework on accepted items = harm metric.</text>
+<text class="s" x="255" y="486">Days from fax arrival to follow-up sent (gap lead time). Confidence calibration: accept rate should rise with stated confidence.</text>
+<text class="s" x="255" y="510">Every human action is a page-level label, which is the dataset the brief says does not exist today.</text>
+
+<!-- arrows -->
+<path class="ln" d="M210,215 L240,215"/>
+<path class="ln" d="M410,215 L440,215"/>
+<path class="ln" d="M610,215 L640,215"/>
+<path class="ln" d="M840,170 L870,130"/>
+<path class="ln" d="M840,240 L870,250"/>
+<path class="ln" d="M1070,125 L1120,180"/>
+<path class="ln" d="M1070,260 L1120,235"/>
+<path class="ln" d="M1220,290 L1220,340"/>
+<path class="ln" d="M1120,290 C1000,380 700,370 640,400"/>
+<text class="s" x="800" y="372">decisions become labels</text>
+<path class="ln" d="M240,465 C150,465 120,400 120,350"/>
+<text class="s" x="40" y="380">re-tune matching</text>
+</svg>
