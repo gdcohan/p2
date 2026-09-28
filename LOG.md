@@ -22,7 +22,7 @@
 - The "also relevant" suggestion is a separate section, visually distinct (dashed purple), and strictly opt-in. Nothing is added to the package unless the user adds it.
 - Handwritten / low-OCR page is flagged on the page itself and in the rationale, and the item's confidence is lower, rather than the agent silently dropping it.
 - Stack: single HTML file, vanilla JS, no build step, so iterations in the remaining time are fast.
-- Queue sort and status filter added (iteration 1). Kept to two controls: sort by "most actionable" (Ready to review > New documents > Waiting on facility > Sent, ties broken by oldest request) or "oldest request first"; filter by status. No free-text search, no column sorting, no saved views.
+- Queue sorting lives on the column headers (Requested, Oldest open request, Status), click again to flip direction. Default sort is Status by actionability (Ready to review > New documents > Waiting on facility > Sent), ties broken by oldest request. Status filter is a dropdown. No free-text search, no saved views. Header copy trimmed to the minimum.
 - "Requested" column shows days since the initial records request, distinct from "oldest open request", because the initial date is what the two-week SLA clock runs against.
 
 ## 2. Assumptions

@@ -32,6 +32,10 @@
   .queue p.sub{margin:0 0 20px;color:var(--muted)}
   table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
   th,td{text-align:left;padding:12px 14px;border-bottom:1px solid var(--line)}
+  th.sortable{cursor:pointer;user-select:none}
+  th.sortable:hover{color:var(--ink)}
+  th.sortable.on{color:var(--accent)}
+  th.sortable.on::after{content:" ↓";} th.sortable.on.asc::after{content:" ↑";}
   th{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;background:#faf9f6}
   tr:last-child td{border-bottom:0}
   tbody tr{cursor:pointer}
@@ -141,12 +145,11 @@
   <div class="queue">
     <h1>My queue</h1>
     <div class="controls">
-      <label>Sort <select id="sortSel" onchange="renderQueue()"><option value="action">Most actionable first</option><option value="oldest">Oldest request first</option></select></label>
       <label>Status <select id="filterSel" onchange="renderQueue()"><option value="all">All</option><option value="ready">Ready to review</option><option value="new">New documents</option><option value="wait">Waiting on facility</option><option value="sent">Sent to nurse review</option></select></label>
       <span class="stat" id="queueCount"></span>
     </div>
     <table>
-      <thead><tr><th>Patient</th><th>Under review</th><th>Requested</th><th>Nurse checklist</th><th>Documents received</th><th>Oldest open request</th><th>Status</th></tr></thead>
+      <thead><tr><th>Patient</th><th>Under review</th><th class="sortable" data-key="requested" onclick="setSort('requested')">Requested</th><th>Nurse checklist</th><th>Documents received</th><th class="sortable" data-key="oldest" onclick="setSort('oldest')">Oldest open request</th><th class="sortable" data-key="status" onclick="setSort('status')">Status</th></tr></thead>
       <tbody id="queueBody"></tbody>
     </table>
   </div>
@@ -179,9 +182,9 @@
 <script>
 // ---------- Hardcoded data ----------
 const otherCases = [
-  {name:'M. Chen',       proc:'Lumbar spinal fusion (L4–L5)',  reqDays:16, prog:'ffpmmm', docs:'1 of 3 facilities', oldest:'12 d · Bayview Spine',      status:['wait','Waiting on facility']},
+  {name:'M. Chen',       proc:'Lumbar spinal fusion (L4–L5)',  reqDays:16, prog:'ffpmmm', docs:'1 of 3 facilities', oldestDays:12, oldest:'12 d · Bayview Spine',      status:['wait','Waiting on facility']},
   {name:'T. Okonkwo',    proc:'Cervical disc replacement',     reqDays:9,  prog:'ffff',   docs:'2 of 2 facilities', oldest:'—',                        status:['ready','Ready to review']},
-  {name:'S. Patel',      proc:'Rotator cuff repair',           reqDays:5,  prog:'fpm',    docs:'1 of 2 facilities', oldest:'4 d · Harborview Ortho',    status:['new','New documents']},
+  {name:'S. Patel',      proc:'Rotator cuff repair',           reqDays:5,  prog:'fpm',    docs:'1 of 2 facilities', oldestDays:4, oldest:'4 d · Harborview Ortho',    status:['new','New documents']},
   {name:'L. Fernández',  proc:'Bariatric surgery (sleeve)',    reqDays:21, prog:'ffffff', docs:'3 of 3 facilities', oldest:'—',                        status:['sent','Sent to nurse review']},
 ];
 
@@ -236,16 +239,24 @@ let caseSent = false;
 
 // ---------- Queue ----------
 const actionRank = {ready:0, new:1, wait:2, sent:3};
+let sortState = {key:'status', asc:false};
+function setSort(key){ sortState = sortState.key===key ? {key, asc:!sortState.asc} : {key, asc:false}; renderQueue(); }
 function renderQueue(){
   const mainProg = items.map(i=>i.status==='found'?'f':i.status==='partial'?'p':'m').join('');
   const mainStatus = caseSent ? ['sent','Sent to nurse review'] : ['new','New documents'];
   const all = [
-    {name:kase.name, proc:kase.proc, reqDays:12, prog:mainProg, docs:'2 of 3 facilities', oldest:'10 d · Lakeside PT', status:mainStatus, onclick:'openCase()'},
+    {name:kase.name, proc:kase.proc, reqDays:12, prog:mainProg, docs:'2 of 3 facilities', oldestDays:10, oldest:'10 d · Lakeside PT', status:mainStatus, onclick:'openCase()'},
     ...otherCases.map(c=>({...c, onclick:"toast('Only the Alvarez case is built in this prototype')"})),
   ];
-  const sort = document.getElementById('sortSel').value, filter = document.getElementById('filterSel').value;
+  const filter = document.getElementById('filterSel').value;
   let rows = filter==='all' ? all : all.filter(c=>c.status[0]===filter);
-  rows.sort((a,b)=> sort==='oldest' ? b.reqDays-a.reqDays : (actionRank[a.status[0]]-actionRank[b.status[0]]) || (b.reqDays-a.reqDays));
+  const keyFn = {
+    requested: c=>-c.reqDays,
+    oldest: c=>c.oldestDays==null ? Infinity : -c.oldestDays,
+    status: c=>actionRank[c.status[0]],
+  }[sortState.key];
+  rows.sort((a,b)=>{ const d = keyFn(a)-keyFn(b); return (sortState.asc ? -d : d) || (b.reqDays-a.reqDays); });
+  document.querySelectorAll('th.sortable').forEach(th=>{ th.classList.toggle('on', th.dataset.key===sortState.key); th.classList.toggle('asc', th.dataset.key===sortState.key && sortState.asc); });
   document.getElementById('queueBody').innerHTML = rows.map(c=>rowHtml(c, c.onclick)).join('') || '<tr><td colspan="7" style="color:var(--muted)">No cases match.</td></tr>';
   document.getElementById('queueCount').textContent = `${rows.length} of ${all.length} cases`;
 }
