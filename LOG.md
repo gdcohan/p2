@@ -17,6 +17,8 @@
 - Stand-alone web app alongside Cora rather than a Cora change, because Cora changes take weeks.
 - Three checklist statuses only (Found / Partial / Missing) plus Accepted. No confidence thresholds exposed as settings.
 - "Not this page" and "Dismiss suggestion" count as interventions; "Accept" and "Add" do not. That is the measurement Poppy cares about, surfaced in the case bar.
+- Found items also get a "Generate follow-up" button that reveals a drafted request for anything beyond what arrived (addenda, later visits, a typed copy of a handwritten note). Nothing is drafted until asked, so the default view for a complete item stays quiet. Generated drafts can be discarded until sent.
+- Pages the agent excluded are shown, not hidden, with "Include" / "Confirm exclude". Including counts as an intervention (the agent was overruled); confirming does not, but it is still logged as a label. Exclusions count toward the agent-decision denominator.
 - Every action on an agent decision is reversible: set-aside pages move to a "Set aside by you" strip with "Put back", Accept has Undo, Add/Dismiss on a suggestion has Undo. The agent's original picks are never destroyed, and the intervention count reflects current state, so putting a page back un-counts it. Sending a follow-up is the one non-reversible action, because a fax cannot be un-sent.
 - Show the agent's rationale as short plain-English bullets next to the pages, not a score alone. The bet is that rationale plus source page is what earns trust.
 - Show one excluded page (bronchitis) on the ortho consult item so the demo makes the "relevance filtering" point visible.

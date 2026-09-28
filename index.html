@@ -98,7 +98,9 @@
   .page .rm{background:none;border:1px solid var(--line);border-radius:6px;padding:2px 8px;font-size:11px;color:var(--muted)}
   .page .rm:hover{border-color:var(--missing);color:var(--missing)}
   .page .rm.back:hover{border-color:var(--found);color:var(--found)}
-  .page.removed{opacity:.55}
+  .page .foot{flex-wrap:wrap}
+  .page .btns{display:flex;gap:6px;align-items:center;flex-basis:100%;justify-content:flex-end;margin-top:6px}
+  .page .mini{font-size:11px;color:var(--muted)}
   .page.faded{opacity:.75;filter:contrast(.8) sepia(.2)}
   .page .warn{position:absolute;top:8px;right:8px;background:var(--partial-soft);color:var(--partial);font-size:10px;font-weight:600;padding:2px 6px;border-radius:4px}
   .removed-wrap .page{opacity:.55}
@@ -216,9 +218,11 @@ const P = {
 
 const items = [
   {id:1, title:'MRI right knee — report', spec:'Mt Sinai Knee Center · 12/10/2025', status:'found', pages:['mri1','mri2','mri3'], conf:.96,
-   why:['Header reads "MRI RIGHT KNEE WITHOUT CONTRAST", exam date 12/10/2025 — exact match to checklist.','Patient name and DOB match case.','Radiologist signature found on p.9, so the report is complete (3 pages).','Ignored 39 other pages in this fax (billing, intake forms, unrelated labs).']},
+   why:['Header reads "MRI RIGHT KNEE WITHOUT CONTRAST", exam date 12/10/2025 — exact match to checklist.','Patient name and DOB match case.','Radiologist signature found on p.9, so the report is complete (3 pages).','Ignored 39 other pages in this fax (billing, intake forms, unrelated labs).'],
+   followupDraft:{to:'Mt Sinai Knee Center · Radiology records · fax (555) 014-7730', body:'Re: ALVAREZ, ROSA (DOB 03/14/1967) — additional imaging\n\nWe received the MRI right knee report dated 12/10/2025 (3 pages) in your fax of 09/22. Please send any addendum to that report and any other right knee imaging reports from 2023 to present not included in that fax, to (555) 014-9900 ref case #A-4471.'}},
   {id:2, title:'Orthopedic consult notes', spec:'Riverside Orthopedics · Jan 2026 – present', status:'found', pages:['ortho1','ortho2','ortho3'], conf:.91,
-   why:['Two visits found in date range: 01/14/2026 (consult, 2 pp.) and 03/10/2026 (follow-up, 1 p.).','Both signed by Dr. K. Hammond, ortho.','Excluded a 10/2025 urgent-care note (bronchitis) as not clinically related.']},
+   why:['Two visits found in date range: 01/14/2026 (consult, 2 pp.) and 03/10/2026 (follow-up, 1 p.).','Both signed by Dr. K. Hammond, ortho.','Excluded a 10/2025 urgent-care note (bronchitis) as not clinically related.'], excluded:['bronch'],
+   followupDraft:{to:'Riverside Orthopedics · Medical records · fax (555) 014-5510', body:'Re: ALVAREZ, ROSA (DOB 03/14/1967) — additional visit notes\n\nWe received orthopedic notes for 01/14/2026 and 03/10/2026 in your fax of 09/24. Please send any visit notes after 03/10/2026, including the pre-operative clearance ordered at that visit, to (555) 014-9900 ref case #A-4471.'}},
   {id:3, title:'Physical therapy records', spec:'Lakeside Physical Therapy · last 12 months', status:'missing', pages:[], conf:null,
    why:['No documents received from Lakeside Physical Therapy. Request sent Sep 18 (10 days ago).','Riverside consult (p.3) confirms PT occurred at Lakeside in 2025, so the records should exist.','No PT pages found in either received fax.'],
    followup:{to:'Lakeside Physical Therapy · Records dept · fax (555) 014-2201', body:'Re: Records request dated 09/18/2026 — ALVAREZ, ROSA (DOB 03/14/1967)\n\nFollowing up on our request for physical therapy records for the right knee, 09/2025 – present, including initial evaluation, progress notes and discharge summary. Please fax to (555) 014-9900 ref case #A-4471.'}},
@@ -226,7 +230,8 @@ const items = [
    why:['Found: XR right knee 02/03/2026, Riverside (p.12).','Gap: the MRI report (p.7) lists "Comparison: Right knee radiographs 03/2024". That study is not in either fax.','Likely held by Mt Sinai Knee Center since the MRI was read there.'],
    followup:{to:'Mt Sinai Knee Center · Radiology records · fax (555) 014-7730', body:'Re: ALVAREZ, ROSA (DOB 03/14/1967) — additional records\n\nYour MRI report of 12/10/2025 references comparison right knee radiographs from 03/2024. Please send that radiograph report (and any other knee imaging 2023–2024) to (555) 014-9900 ref case #A-4471.'}},
   {id:5, title:'Cortisone injection procedure notes', spec:'Riverside Orthopedics · 2025 – 2026', status:'found', pages:['inj1','inj2','inj3'], conf:.78,
-   why:['Three injection notes found: 06/02/2025, 09/15/2025, 11/20/2025.','Consult note (p.3) says "cortisone x3", which matches the count.','p.77 is handwritten with low OCR confidence — please verify it is the 11/20/2025 injection before accepting.']},
+   why:['Three injection notes found: 06/02/2025, 09/15/2025, 11/20/2025.','Consult note (p.3) says "cortisone x3", which matches the count.','p.77 is handwritten with low OCR confidence — please verify it is the 11/20/2025 injection before accepting.'],
+   followupDraft:{to:'Riverside Orthopedics · Medical records · fax (555) 014-5510', body:'Re: ALVAREZ, ROSA (DOB 03/14/1967) — procedure notes\n\nWe received injection procedure notes for 06/02/2025, 09/15/2025 and 11/20/2025. The 11/20/2025 note is handwritten and partly illegible; please send a typed or dictated copy if one exists, plus any injection notes from 2026, to (555) 014-9900 ref case #A-4471.'}},
 ];
 
 const suggestions = [
@@ -236,10 +241,11 @@ const suggestions = [
 
 // ---------- State ----------
 let selected = {kind:'item', id:1};
-items.forEach(i=>i.removed=[]);   // page ids the user set aside; agent picks in i.pages stay intact
-const activePages = it => it.pages.filter(p=>!(it.removed||[]).includes(p));
-const interventions = () => items.reduce((n,i)=>n+i.removed.length,0) + suggestions.filter(s=>s.state==='dismissed').length;
-const agentDecisions = items.reduce((n,i)=>n+i.pages.length,0) + suggestions.length; // page picks + suggestions
+items.forEach(i=>{ i.removed=[]; i.excluded=i.excluded||[]; i.exclDecision={}; });   // agent picks in i.pages / i.excluded stay intact
+const includedPages = it => it.excluded.filter(p=>it.exclDecision[p]==='included');
+const activePages = it => it.pages.filter(p=>!it.removed.includes(p)).concat(includedPages(it));
+const interventions = () => items.reduce((n,i)=>n+i.removed.length+includedPages(i).length,0) + suggestions.filter(s=>s.state==='dismissed').length;
+const agentDecisions = items.reduce((n,i)=>n+i.pages.length+i.excluded.length,0) + suggestions.length; // page picks + exclusions + suggestions
 let caseSent = false;
 
 // ---------- Queue ----------
@@ -286,7 +292,7 @@ function renderAll(){ renderChecklist(); renderCenter(); renderRight(); renderSt
 function effStatus(it){ return (it.status!=='missing' && activePages(it).length===0) ? 'missing' : it.status; }
 function statusLabel(it){
   if(it.accepted) return ['done','Accepted'];
-  if(it.followUpSent) return ['missing', it.status==='partial' ? 'Partial · follow-up sent' : 'Requested again'];
+  if(it.followUpSent) return it.status==='missing' ? ['missing','Requested again'] : [it.status, (it.status==='partial'?'Partial':'Found')+' · follow-up sent'];
   const st = effStatus(it);
   return [st, {found:'Found',partial:'Partial',missing:'Missing'}[st]];
 }
@@ -312,7 +318,10 @@ function select(kind,id){ selected={kind,id}; renderAll(); }
 function pageHtml(pid, action){
   const p = P[pid];
   const btn = action==='remove' ? `<button class="rm" onclick="removePage('${pid}')">Not this page</button>`
-            : action==='putback' ? `<button class="rm back" onclick="putBack('${pid}')">Put back</button>` : '';
+            : action==='putback' ? `<button class="rm back" onclick="putBack('${pid}')">Put back</button>`
+            : action==='exclude' ? `<span class="btns"><button class="rm back" onclick="exclDecide('${pid}','included')">Include</button><button class="rm" onclick="exclDecide('${pid}','confirmed')">Confirm exclude</button></span>`
+            : action==='excl-confirmed' ? `<span class="btns"><span class="mini">Exclusion confirmed</span><button class="rm" onclick="exclDecide('${pid}',null)">Undo</button></span>`
+            : action==='reexclude' ? `<span class="btns"><span class="mini">Included by you</span><button class="rm" onclick="exclDecide('${pid}',null)">Exclude again</button></span>` : '';
   return `<div class="page ${p.faded?'faded':''}">
     ${p.warn?`<div class="warn">${p.warn}</div>`:''}
     <div class="lh"><span>${p.fac}</span><span>${p.doc} · p.${p.n}</span></div>
@@ -329,7 +338,7 @@ function renderCenter(){
   const locked = isSugg ? it.state!=='open' : !!it.accepted;
   let html = `<div class="hdr"><h2>${it.title}</h2><span class="src">${it.spec}</span></div>`;
   if(active.length){
-    html += `<div class="pages">${active.map(p=>pageHtml(p, locked||isSugg ? '' : 'remove')).join('')}</div>`;
+    html += `<div class="pages">${active.map(p=>pageHtml(p, locked||isSugg ? '' : (it.excluded.includes(p) ? 'reexclude' : 'remove'))).join('')}</div>`;
   } else {
     html += (!isSugg && it.removed.length)
       ? `<div class="empty">You set aside every page the agent picked. Put one back, or send a follow-up.</div>`
@@ -338,7 +347,10 @@ function renderCenter(){
   if(!isSugg && it.removed.length){
     html += `<div class="subhead">Set aside by you (${it.removed.length})</div><div class="pages">${it.removed.map(p=>`<div class="removed-wrap">${pageHtml(p, locked ? '' : 'putback')}</div>`).join('')}</div>`;
   }
-  if(it.id===2){ html += `<div class="subhead">Excluded by agent (1)</div><div class="pages">${pageHtml('bronch','')}</div>`; }
+  const stillExcluded = isSugg ? [] : it.excluded.filter(p=>it.exclDecision[p]!=='included');
+  if(stillExcluded.length){
+    html += `<div class="subhead">Excluded by agent (${stillExcluded.length})</div><div class="pages">${stillExcluded.map(p=>`<div class="removed-wrap">${pageHtml(p, locked ? '' : (it.exclDecision[p]==='confirmed' ? 'excl-confirmed' : 'exclude'))}</div>`).join('')}</div>`;
+  }
   el.innerHTML = html;
 }
 function renderRight(){
@@ -368,7 +380,9 @@ function renderRight(){
   if(!isSugg && it.followup){
     html += `<h3>Follow-up request</h3><div class="card"><div class="kv"><b>To</b><span>${it.followup.to}</span></div>
       <div class="draft" style="margin-top:8px">${it.followup.body}</div>
-      <div class="actions">${it.followUpSent?`<span class="note">Sent today. Tracked in Cora as an open request.</span>`:`<button class="btn primary" onclick="sendFollowup()">Send follow-up</button><button class="btn ghost" onclick="toast('Editing the draft is not built in this prototype')">Edit</button>`}</div></div>`;
+      <div class="actions">${it.followUpSent?`<span class="note">Sent today. Tracked in Cora as an open request.</span>`:`<button class="btn primary" onclick="sendFollowup()">Send follow-up</button><button class="btn ghost" onclick="toast('Editing the draft is not built in this prototype')">Edit</button>${it.generated?`<button class="btn ghost" onclick="discardFollowup()">Discard</button>`:''}`}</div></div>`;
+  } else if(!isSugg && it.followupDraft){
+    html += `<h3>Follow-up request</h3><div class="card"><div class="note" style="margin:0 0 10px">Nothing is missing on this item. You can still ask the facility for more.</div><button class="btn" onclick="generateFollowup()">Generate follow-up</button></div>`;
   }
   el.innerHTML = html;
 }
@@ -382,6 +396,9 @@ function unaccept(){ current().accepted = false; renderAll(); }
 function removePage(pid){ current().removed.push(pid); renderAll(); toast('Set aside · logged as an intervention'); }
 function putBack(pid){ const it=current(); it.removed = it.removed.filter(p=>p!==pid); renderAll(); toast('Put back'); }
 function sendFollowup(){ current().followUpSent = true; renderAll(); toast('Follow-up sent'); }
+function generateFollowup(){ const it=current(); it.followup = it.followupDraft; it.generated = true; renderAll(); }
+function discardFollowup(){ const it=current(); it.followup = null; it.generated = false; renderAll(); }
+function exclDecide(pid, d){ const it=current(); if(d) it.exclDecision[pid]=d; else delete it.exclDecision[pid]; renderAll(); if(d==='included') toast('Included · logged as an intervention'); }
 function suggestAct(state){ current().state=state; renderAll(); }
 
 function openSend(){
