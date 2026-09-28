@@ -28,7 +28,7 @@
 
   /* Queue */
   .queue{max-width:1040px;margin:32px auto;padding:0 24px}
-  .queue h1{font-size:22px;margin:0 0 4px}
+  .queue h1{font-size:22px;margin:0 0 16px}
   .queue p.sub{margin:0 0 20px;color:var(--muted)}
   table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
   th,td{text-align:left;padding:12px 14px;border-bottom:1px solid var(--line)}
@@ -134,13 +134,12 @@
 </style>
 </head>
 <body>
-<div class="topbar"><div class="brand">Records Assembly <span>· Records team</span></div><div class="who">Signed in as Dana M. · Records team</div></div>
+<div class="topbar"><div class="brand">Records Assembly</div><div class="who">Signed in as Dana M.</div></div>
 
 <!-- Screen 1: queue -->
 <section id="queue" class="screen active">
   <div class="queue">
     <h1>My queue</h1>
-    <p class="sub">Cases assigned to you. Checklist status is updated by the agent as faxes land in SharePoint.</p>
     <div class="controls">
       <label>Sort <select id="sortSel" onchange="renderQueue()"><option value="action">Most actionable first</option><option value="oldest">Oldest request first</option></select></label>
       <label>Status <select id="filterSel" onchange="renderQueue()"><option value="all">All</option><option value="ready">Ready to review</option><option value="new">New documents</option><option value="wait">Waiting on facility</option><option value="sent">Sent to nurse review</option></select></label>
