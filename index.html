@@ -39,6 +39,9 @@
   .prog{display:inline-flex;gap:3px;vertical-align:middle;margin-right:8px}
   .prog i{width:14px;height:8px;border-radius:2px;background:var(--line);display:block}
   .prog i.f{background:var(--found)} .prog i.p{background:var(--partial)} .prog i.m{background:var(--missing)}
+  .controls{display:flex;align-items:center;gap:18px;margin-bottom:12px;color:var(--muted);font-size:13px}
+  .controls select{font:inherit;padding:5px 8px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink);margin-left:4px}
+  .controls .stat{margin-left:auto}
   .tag{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600}
   .tag.ready{background:var(--found-soft);color:var(--found)}
   .tag.wait{background:var(--partial-soft);color:var(--partial)}
@@ -138,8 +141,13 @@
   <div class="queue">
     <h1>My queue</h1>
     <p class="sub">Cases assigned to you. Checklist status is updated by the agent as faxes land in SharePoint.</p>
+    <div class="controls">
+      <label>Sort <select id="sortSel" onchange="renderQueue()"><option value="action">Most actionable first</option><option value="oldest">Oldest request first</option></select></label>
+      <label>Status <select id="filterSel" onchange="renderQueue()"><option value="all">All</option><option value="ready">Ready to review</option><option value="new">New documents</option><option value="wait">Waiting on facility</option><option value="sent">Sent to nurse review</option></select></label>
+      <span class="stat" id="queueCount"></span>
+    </div>
     <table>
-      <thead><tr><th>Patient</th><th>Under review</th><th>Nurse checklist</th><th>Documents received</th><th>Oldest open request</th><th>Status</th></tr></thead>
+      <thead><tr><th>Patient</th><th>Under review</th><th>Requested</th><th>Nurse checklist</th><th>Documents received</th><th>Oldest open request</th><th>Status</th></tr></thead>
       <tbody id="queueBody"></tbody>
     </table>
   </div>
@@ -172,10 +180,10 @@
 <script>
 // ---------- Hardcoded data ----------
 const otherCases = [
-  {name:'M. Chen',       proc:'Lumbar spinal fusion (L4–L5)',  prog:'ffpmmm', docs:'1 of 3 facilities', oldest:'12 d · Bayview Spine',      status:['wait','Waiting on facility']},
-  {name:'T. Okonkwo',    proc:'Cervical disc replacement',     prog:'ffff',   docs:'2 of 2 facilities', oldest:'—',                        status:['ready','Ready to review']},
-  {name:'S. Patel',      proc:'Rotator cuff repair',           prog:'fpm',    docs:'1 of 2 facilities', oldest:'4 d · Harborview Ortho',    status:['new','New documents']},
-  {name:'L. Fernández',  proc:'Bariatric surgery (sleeve)',    prog:'ffffff', docs:'3 of 3 facilities', oldest:'—',                        status:['sent','Sent to nurse review']},
+  {name:'M. Chen',       proc:'Lumbar spinal fusion (L4–L5)',  reqDays:16, prog:'ffpmmm', docs:'1 of 3 facilities', oldest:'12 d · Bayview Spine',      status:['wait','Waiting on facility']},
+  {name:'T. Okonkwo',    proc:'Cervical disc replacement',     reqDays:9,  prog:'ffff',   docs:'2 of 2 facilities', oldest:'—',                        status:['ready','Ready to review']},
+  {name:'S. Patel',      proc:'Rotator cuff repair',           reqDays:5,  prog:'fpm',    docs:'1 of 2 facilities', oldest:'4 d · Harborview Ortho',    status:['new','New documents']},
+  {name:'L. Fernández',  proc:'Bariatric surgery (sleeve)',    reqDays:21, prog:'ffffff', docs:'3 of 3 facilities', oldest:'—',                        status:['sent','Sent to nurse review']},
 ];
 
 const kase = {
@@ -228,17 +236,23 @@ const agentDecisions = items.reduce((n,i)=>n+i.pages.length,0) + suggestions.len
 let caseSent = false;
 
 // ---------- Queue ----------
+const actionRank = {ready:0, new:1, wait:2, sent:3};
 function renderQueue(){
-  const rows = [];
   const mainProg = items.map(i=>i.status==='found'?'f':i.status==='partial'?'p':'m').join('');
   const mainStatus = caseSent ? ['sent','Sent to nurse review'] : ['new','New documents'];
-  rows.push(rowHtml({name:kase.name, proc:kase.proc, prog:mainProg, docs:'2 of 3 facilities', oldest:'10 d · Lakeside PT', status:mainStatus}, 'openCase()'));
-  otherCases.forEach(c=>rows.push(rowHtml(c, "toast('Only the Alvarez case is built in this prototype')")));
-  document.getElementById('queueBody').innerHTML = rows.join('');
+  const all = [
+    {name:kase.name, proc:kase.proc, reqDays:12, prog:mainProg, docs:'2 of 3 facilities', oldest:'10 d · Lakeside PT', status:mainStatus, onclick:'openCase()'},
+    ...otherCases.map(c=>({...c, onclick:"toast('Only the Alvarez case is built in this prototype')"})),
+  ];
+  const sort = document.getElementById('sortSel').value, filter = document.getElementById('filterSel').value;
+  let rows = filter==='all' ? all : all.filter(c=>c.status[0]===filter);
+  rows.sort((a,b)=> sort==='oldest' ? b.reqDays-a.reqDays : (actionRank[a.status[0]]-actionRank[b.status[0]]) || (b.reqDays-a.reqDays));
+  document.getElementById('queueBody').innerHTML = rows.map(c=>rowHtml(c, c.onclick)).join('') || '<tr><td colspan="7" style="color:var(--muted)">No cases match.</td></tr>';
+  document.getElementById('queueCount').textContent = `${rows.length} of ${all.length} cases`;
 }
 function rowHtml(c, onclick){
   const done = (c.prog.match(/f/g)||[]).length;
-  return `<tr onclick="${onclick}"><td><b>${c.name}</b></td><td>${c.proc}</td>
+  return `<tr onclick="${onclick}"><td><b>${c.name}</b></td><td>${c.proc}</td><td>${c.reqDays} d ago</td>
     <td><span class="prog">${[...c.prog].map(x=>`<i class="${x}"></i>`).join('')}</span>${done}/${c.prog.length} found</td>
     <td>${c.docs}</td><td>${c.oldest}</td><td><span class="tag ${c.status[0]}">${c.status[1]}</span></td></tr>`;
 }

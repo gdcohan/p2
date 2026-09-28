@@ -7,7 +7,7 @@
 - Editing the drafted follow-up text (button is a placeholder).
 - OCR, real document viewer, search within documents. Page "scans" are stylized placeholders.
 - Cora and SharePoint integration UI. Assumed: checklist read from Cora, documents from SharePoint Graph API, package written back to Cora at "Send to nurse review".
-- Login, settings, queue filters, sorting, notifications, case history, multi-user assignment.
+- Login, settings, notifications, case history, multi-user assignment.
 - Ops dashboard for Derek. The only gesture is the "agent decisions changed: N of M" counter and the pages-reviewed line in the send modal.
 - Other queue rows are not clickable; only the Alvarez case is built.
 
@@ -22,6 +22,8 @@
 - The "also relevant" suggestion is a separate section, visually distinct (dashed purple), and strictly opt-in. Nothing is added to the package unless the user adds it.
 - Handwritten / low-OCR page is flagged on the page itself and in the rationale, and the item's confidence is lower, rather than the agent silently dropping it.
 - Stack: single HTML file, vanilla JS, no build step, so iterations in the remaining time are fast.
+- Queue sort and status filter added (iteration 1). Kept to two controls: sort by "most actionable" (Ready to review > New documents > Waiting on facility > Sent, ties broken by oldest request) or "oldest request first"; filter by status. No free-text search, no column sorting, no saved views.
+- "Requested" column shows days since the initial records request, distinct from "oldest open request", because the initial date is what the two-week SLA clock runs against.
 
 ## 2. Assumptions
 - Nurses' checklist items in Cora are specific enough (facility + document type + date range) to anchor matching. If they are often vague, the agent needs a "clarify checklist" step first.
