@@ -1,0 +1,374 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Records Assembly</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#f4f3ef; --panel:#ffffff; --ink:#1c2230; --muted:#6b7280; --line:#e4e2dc;
+    --accent:#1f4e79; --accent-soft:#e3ecf5;
+    --found:#1e7a4d; --found-soft:#e2f3e9;
+    --partial:#a86400; --partial-soft:#fbefd8;
+    --missing:#b3261e; --missing-soft:#fae3e1;
+    --suggest:#5b3fb8; --suggest-soft:#ebe5fa;
+    --mono:'IBM Plex Mono',ui-monospace,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 Inter,system-ui,sans-serif}
+  button{font:inherit;cursor:pointer}
+  .topbar{display:flex;align-items:center;gap:14px;padding:12px 24px;background:var(--panel);border-bottom:1px solid var(--line)}
+  .brand{font-weight:700;letter-spacing:.02em}
+  .brand span{color:var(--muted);font-weight:500;margin-left:8px}
+  .topbar .who{margin-left:auto;color:var(--muted)}
+  .screen{display:none}
+  .screen.active{display:block}
+
+  /* Queue */
+  .queue{max-width:1040px;margin:32px auto;padding:0 24px}
+  .queue h1{font-size:22px;margin:0 0 4px}
+  .queue p.sub{margin:0 0 20px;color:var(--muted)}
+  table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  th,td{text-align:left;padding:12px 14px;border-bottom:1px solid var(--line)}
+  th{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;background:#faf9f6}
+  tr:last-child td{border-bottom:0}
+  tbody tr{cursor:pointer}
+  tbody tr:hover{background:#faf9f6}
+  .prog{display:inline-flex;gap:3px;vertical-align:middle;margin-right:8px}
+  .prog i{width:14px;height:8px;border-radius:2px;background:var(--line);display:block}
+  .prog i.f{background:var(--found)} .prog i.p{background:var(--partial)} .prog i.m{background:var(--missing)}
+  .tag{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600}
+  .tag.ready{background:var(--found-soft);color:var(--found)}
+  .tag.wait{background:var(--partial-soft);color:var(--partial)}
+  .tag.new{background:var(--accent-soft);color:var(--accent)}
+  .tag.sent{background:#e9e9ef;color:#4b4f63}
+
+  /* Workspace */
+  .casebar{display:flex;align-items:center;gap:18px;padding:14px 24px;background:var(--panel);border-bottom:1px solid var(--line)}
+  .casebar .back{background:none;border:0;color:var(--accent);padding:0;font-weight:500}
+  .casebar h2{font-size:17px;margin:0}
+  .casebar .meta{color:var(--muted)}
+  .casebar .send{margin-left:auto;background:var(--accent);color:#fff;border:0;border-radius:8px;padding:9px 16px;font-weight:600}
+  .work{display:grid;grid-template-columns:320px 1fr 340px;gap:0;height:calc(100vh - 106px)}
+  .col{overflow:auto;padding:18px}
+  .col.left{border-right:1px solid var(--line);background:var(--panel)}
+  .col.right{border-left:1px solid var(--line);background:var(--panel)}
+  .col h3{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 10px}
+  .col h3 small{text-transform:none;letter-spacing:0;font-weight:500;margin-left:6px}
+  .item{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px;cursor:pointer;background:#fff}
+  .item:hover{border-color:#c9c6bd}
+  .item.sel{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
+  .item .t{font-weight:600;margin-bottom:2px}
+  .item .d{color:var(--muted);font-size:12.5px}
+  .item .row{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:6px}
+  .st{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;padding:2px 8px;border-radius:999px}
+  .st::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+  .st.found{background:var(--found-soft);color:var(--found)}
+  .st.partial{background:var(--partial-soft);color:var(--partial)}
+  .st.missing{background:var(--missing-soft);color:var(--missing)}
+  .st.suggest{background:var(--suggest-soft);color:var(--suggest)}
+  .st.done{background:var(--ink);color:#fff}
+  .st.done::before{content:"✓";background:none;width:auto;height:auto}
+  .pagecount{font-family:var(--mono);font-size:12px;color:var(--muted)}
+  .divider{margin:18px 0 10px}
+  .suggestbox{border:1px dashed var(--suggest);background:var(--suggest-soft)}
+
+  .center{background:var(--bg)}
+  .center .hdr{display:flex;align-items:baseline;gap:12px;margin-bottom:12px}
+  .center .hdr h2{font-size:16px;margin:0}
+  .center .hdr .src{color:var(--muted);font-size:13px}
+  .pages{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
+  .page{background:#fff;border:1px solid var(--line);border-radius:6px;padding:14px 14px 12px;box-shadow:0 1px 2px rgba(0,0,0,.05);position:relative;min-height:260px;display:flex;flex-direction:column}
+  .page .lh{font-family:var(--mono);font-size:10px;color:var(--muted);border-bottom:1px solid var(--line);padding-bottom:6px;margin-bottom:8px;display:flex;justify-content:space-between}
+  .page .title{font-weight:700;font-size:12.5px;margin-bottom:6px}
+  .page .body{font-size:11px;color:#3a3f4b;flex:1}
+  .page .body p{margin:0 0 5px}
+  .page .body .hl{background:#fff3b0;box-decoration-break:clone;padding:0 2px}
+  .page .body.hand{font-family:'Comic Sans MS','Segoe Print',cursive;color:#2b3a67;transform:rotate(-1deg)}
+  .page .foot{display:flex;justify-content:space-between;align-items:center;margin-top:8px;font-size:11px;color:var(--muted)}
+  .page .rm{background:none;border:1px solid var(--line);border-radius:6px;padding:2px 8px;font-size:11px;color:var(--muted)}
+  .page .rm:hover{border-color:var(--missing);color:var(--missing)}
+  .page.faded{opacity:.75;filter:contrast(.8) sepia(.2)}
+  .page .warn{position:absolute;top:8px;right:8px;background:var(--partial-soft);color:var(--partial);font-size:10px;font-weight:600;padding:2px 6px;border-radius:4px}
+  .empty{border:1px dashed #c9c6bd;border-radius:10px;padding:28px;color:var(--muted);text-align:center}
+  .subhead{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:18px 0 8px}
+
+  .card{border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:12px}
+  .card h4{margin:0 0 8px;font-size:13px}
+  .conf{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);margin-bottom:8px}
+  .conf .bar{flex:1;height:6px;background:var(--line);border-radius:3px;overflow:hidden}
+  .conf .bar i{display:block;height:100%;background:var(--found)}
+  .conf .bar i.med{background:var(--partial)}
+  .why{font-size:13px;color:#3a3f4b}
+  .why li{margin-bottom:4px}
+  .why ul{padding-left:18px;margin:0}
+  .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .btn{border:1px solid var(--line);background:#fff;border-radius:8px;padding:8px 12px;font-weight:600}
+  .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .btn.ok{background:var(--found);color:#fff;border-color:var(--found)}
+  .btn.ghost{color:var(--muted)}
+  .btn:disabled{opacity:.5;cursor:default}
+  .draft{background:#faf9f6;border:1px solid var(--line);border-radius:8px;padding:10px;font-family:var(--mono);font-size:12px;white-space:pre-wrap;color:#3a3f4b}
+  .note{font-size:12px;color:var(--muted);margin-top:8px}
+  .kv{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:12.5px}
+  .kv b{font-weight:600}
+  .stat{font-family:var(--mono);font-size:12px;color:var(--muted)}
+
+  /* modal */
+  .modal-bg{position:fixed;inset:0;background:rgba(28,34,48,.45);display:none;align-items:center;justify-content:center;z-index:10}
+  .modal-bg.open{display:flex}
+  .modal{background:#fff;border-radius:14px;padding:24px;width:520px;max-width:92vw}
+  .modal h2{margin:0 0 6px;font-size:18px}
+  .modal .sum{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin:16px 0}
+  .modal .sum div{border:1px solid var(--line);border-radius:10px;padding:10px}
+  .modal .sum b{display:block;font-size:22px}
+  .modal .sum span{font-size:12px;color:var(--muted)}
+  .modal ul{margin:0 0 14px;padding-left:18px;font-size:13px}
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:8px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none}
+  .toast.show{opacity:1}
+</style>
+</head>
+<body>
+<div class="topbar"><div class="brand">Records Assembly <span>· Records team</span></div><div class="who">Signed in as Dana M. · Records team</div></div>
+
+<!-- Screen 1: queue -->
+<section id="queue" class="screen active">
+  <div class="queue">
+    <h1>My queue</h1>
+    <p class="sub">Cases assigned to you. Checklist status is updated by the agent as faxes land in SharePoint.</p>
+    <table>
+      <thead><tr><th>Patient</th><th>Under review</th><th>Nurse checklist</th><th>Documents received</th><th>Oldest open request</th><th>Status</th></tr></thead>
+      <tbody id="queueBody"></tbody>
+    </table>
+  </div>
+</section>
+
+<!-- Screen 2: case workspace -->
+<section id="work" class="screen">
+  <div class="casebar">
+    <button class="back" onclick="showQueue()">← Queue</button>
+    <h2 id="caseTitle"></h2>
+    <div class="meta" id="caseMeta"></div>
+    <div class="stat" id="caseStat"></div>
+    <button class="send" onclick="openSend()">Send to nurse review</button>
+  </div>
+  <div class="work">
+    <div class="col left">
+      <h3>Nurse checklist <small id="nurseName"></small></h3>
+      <div id="checklist"></div>
+      <h3 class="divider">Agent suggestions <small>not on checklist</small></h3>
+      <div id="suggestions"></div>
+    </div>
+    <div class="col center" id="center"></div>
+    <div class="col right" id="right"></div>
+  </div>
+</section>
+
+<div class="modal-bg" id="sendModal"><div class="modal" id="sendModalBody"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ---------- Hardcoded data ----------
+const otherCases = [
+  {name:'M. Chen',       proc:'Lumbar spinal fusion (L4–L5)',  prog:'ffpmmm', docs:'1 of 3 facilities', oldest:'12 d · Bayview Spine',      status:['wait','Waiting on facility']},
+  {name:'T. Okonkwo',    proc:'Cervical disc replacement',     prog:'ffff',   docs:'2 of 2 facilities', oldest:'—',                        status:['ready','Ready to review']},
+  {name:'S. Patel',      proc:'Rotator cuff repair',           prog:'fpm',    docs:'1 of 2 facilities', oldest:'4 d · Harborview Ortho',    status:['new','New documents']},
+  {name:'L. Fernández',  proc:'Bariatric surgery (sleeve)',    prog:'ffffff', docs:'3 of 3 facilities', oldest:'—',                        status:['sent','Sent to nurse review']},
+];
+
+const kase = {
+  name:'R. Alvarez', age:58, proc:'Right total knee replacement (TKA)', nurse:'J. Okafor, RN', opened:'Sep 16',
+  received:[{doc:'D1',fac:'Mt Sinai Knee Center',pages:42,on:'Sep 22'},{doc:'D2',fac:'Riverside Orthopedics',pages:118,on:'Sep 24'}],
+  pending:[{fac:'Lakeside Physical Therapy',requested:'Sep 18'}],
+};
+
+// pages: {id, doc, n, fac, date, title, lines[], hl (index of highlighted line), hand, faded, warn}
+const P = {
+  mri1:{doc:'D1',n:7, fac:'Mt Sinai Knee Center · Radiology', date:'12/10/2025', title:'MRI RIGHT KNEE WITHOUT CONTRAST', lines:['Patient: ALVAREZ, ROSA   DOB 03/14/1967','Exam date: 12/10/2025   Ordering: Dr. K. Hammond','Clinical history: chronic R knee pain, evaluate for arthroplasty.','Comparison: Right knee radiographs 03/2024.','TECHNIQUE: Multiplanar multisequence imaging.'], hl:[0,1]},
+  mri2:{doc:'D1',n:8, fac:'Mt Sinai Knee Center · Radiology', date:'12/10/2025', title:'MRI RIGHT KNEE — FINDINGS', lines:['MENISCI: Complex tear posterior horn medial meniscus with extrusion.','CARTILAGE: Full-thickness loss medial compartment, bone-on-bone at weight-bearing surface.','LIGAMENTS: ACL, PCL intact. MCL grade 1 sprain.','EFFUSION: Moderate joint effusion. Baker cyst 3.1 cm.'], hl:[1]},
+  mri3:{doc:'D1',n:9, fac:'Mt Sinai Knee Center · Radiology', date:'12/10/2025', title:'MRI RIGHT KNEE — IMPRESSION', lines:['1. Advanced tricompartmental osteoarthritis, medial predominant.','2. Complex medial meniscal tear.','3. Moderate effusion.','Electronically signed: R. Ibarra, MD  12/10/2025 16:42'], hl:[3]},
+  ortho1:{doc:'D2',n:3, fac:'Riverside Orthopedics', date:'01/14/2026', title:'ORTHOPEDIC CONSULTATION', lines:['CC: Right knee pain x 3 yrs, worsening.','HPI: Pain 7/10 with stairs. Failed NSAIDs, PT (Lakeside, 2025), cortisone x3.','EXAM: Varus alignment R. ROM 5–105°. Medial joint line tenderness.','ASSESSMENT: End-stage R knee OA.'], hl:[1,3]},
+  ortho2:{doc:'D2',n:4, fac:'Riverside Orthopedics', date:'01/14/2026', title:'ORTHOPEDIC CONSULTATION (cont.)', lines:['PLAN: Discussed total knee arthroplasty. Risks/benefits reviewed.','Patient wishes to consider. Will obtain second opinion via insurer.','Continue home exercise program. F/U 8 weeks.','Dr. K. Hammond, MD'], hl:[0]},
+  ortho3:{doc:'D2',n:41, fac:'Riverside Orthopedics', date:'03/10/2026', title:'ORTHOPEDIC FOLLOW-UP', lines:['Interval: No improvement. Night pain now present.','Reviewed MRI 12/10/25 with patient.','Recommend proceeding with R TKA. Pre-op clearance ordered.','Dr. K. Hammond, MD'], hl:[2]},
+  xray1:{doc:'D2',n:12, fac:'Riverside Orthopedics · Imaging', date:'02/03/2026', title:'XR RIGHT KNEE, 3 VIEWS', lines:['Standing AP, lateral, sunrise.','Findings: Severe medial joint space narrowing, subchondral sclerosis, marginal osteophytes.','Impression: Severe medial compartment OA. KL grade 4.'], hl:[2]},
+  inj1:{doc:'D2',n:58, fac:'Riverside Orthopedics', date:'06/02/2025', title:'PROCEDURE NOTE — INTRA-ARTICULAR INJECTION', lines:['Procedure: R knee intra-articular injection, triamcinolone 40 mg + lidocaine.','Consent obtained. Sterile prep. Anterolateral approach.','Tolerated well. Relief expected 4–8 weeks.'], hl:[0]},
+  inj2:{doc:'D2',n:59, fac:'Riverside Orthopedics', date:'09/15/2025', title:'PROCEDURE NOTE — INTRA-ARTICULAR INJECTION', lines:['Procedure: R knee intra-articular injection, triamcinolone 40 mg.','Patient reports ~3 weeks relief from prior injection.','Tolerated well.'], hl:[0,1]},
+  inj3:{doc:'D2',n:77, fac:'Riverside Orthopedics', date:'11/20/2025', title:'(handwritten) procedure note', lines:['R knee inj — kenalog 40 + lido','pt says last one "barely helped"','no complic.  — KH'], hl:[0], hand:true, faded:true, warn:'Low OCR confidence'},
+  scope1:{doc:'D2',n:91, fac:'Riverside Orthopedics · Surgery', date:'06/22/2023', title:'OPERATIVE REPORT — R KNEE ARTHROSCOPY', lines:['Pre-op dx: Medial meniscal tear R knee.','Procedure: Arthroscopic partial medial meniscectomy, chondroplasty.','Findings: Grade III chondromalacia medial femoral condyle, grade II patella.'], hl:[2]},
+  scope2:{doc:'D2',n:92, fac:'Riverside Orthopedics · Surgery', date:'06/22/2023', title:'OPERATIVE REPORT (cont.)', lines:['Loose body removed. Irrigated.','Post-op plan: WBAT, PT referral.','Dr. K. Hammond, MD'], hl:[]},
+  bronch:{doc:'D2',n:22, fac:'Riverside Orthopedics', date:'10/2025', title:'(excluded) Urgent care visit — bronchitis', lines:['Not related to knee. Excluded by agent.'], hl:[]},
+};
+
+const items = [
+  {id:1, title:'MRI right knee — report', spec:'Mt Sinai Knee Center · 12/10/2025', status:'found', pages:['mri1','mri2','mri3'], conf:.96,
+   why:['Header reads "MRI RIGHT KNEE WITHOUT CONTRAST", exam date 12/10/2025 — exact match to checklist.','Patient name and DOB match case.','Radiologist signature found on p.9, so the report is complete (3 pages).','Ignored 39 other pages in this fax (billing, intake forms, unrelated labs).']},
+  {id:2, title:'Orthopedic consult notes', spec:'Riverside Orthopedics · Jan 2026 – present', status:'found', pages:['ortho1','ortho2','ortho3'], conf:.91,
+   why:['Two visits found in date range: 01/14/2026 (consult, 2 pp.) and 03/10/2026 (follow-up, 1 p.).','Both signed by Dr. K. Hammond, ortho.','Excluded a 10/2025 urgent-care note (bronchitis) as not clinically related.']},
+  {id:3, title:'Physical therapy records', spec:'Lakeside Physical Therapy · last 12 months', status:'missing', pages:[], conf:null,
+   why:['No documents received from Lakeside Physical Therapy. Request sent Sep 18 (10 days ago).','Riverside consult (p.3) confirms PT occurred at Lakeside in 2025, so the records should exist.','No PT pages found in either received fax.'],
+   followup:{to:'Lakeside Physical Therapy · Records dept · fax (555) 014-2201', body:'Re: Records request dated 09/18/2026 — ALVAREZ, ROSA (DOB 03/14/1967)\n\nFollowing up on our request for physical therapy records for the right knee, 09/2025 – present, including initial evaluation, progress notes and discharge summary. Please fax to (555) 014-9900 ref case #A-4471.'}},
+  {id:4, title:'Prior knee X-ray reports', spec:'Any facility · last 3 years', status:'partial', pages:['xray1'], conf:.72,
+   why:['Found: XR right knee 02/03/2026, Riverside (p.12).','Gap: the MRI report (p.7) lists "Comparison: Right knee radiographs 03/2024". That study is not in either fax.','Likely held by Mt Sinai Knee Center since the MRI was read there.'],
+   followup:{to:'Mt Sinai Knee Center · Radiology records · fax (555) 014-7730', body:'Re: ALVAREZ, ROSA (DOB 03/14/1967) — additional records\n\nYour MRI report of 12/10/2025 references comparison right knee radiographs from 03/2024. Please send that radiograph report (and any other knee imaging 2023–2024) to (555) 014-9900 ref case #A-4471.'}},
+  {id:5, title:'Cortisone injection procedure notes', spec:'Riverside Orthopedics · 2025 – 2026', status:'found', pages:['inj1','inj2','inj3'], conf:.78,
+   why:['Three injection notes found: 06/02/2025, 09/15/2025, 11/20/2025.','Consult note (p.3) says "cortisone x3", which matches the count.','p.77 is handwritten with low OCR confidence — please verify it is the 11/20/2025 injection before accepting.']},
+];
+
+const suggestions = [
+  {id:'s1', title:'Arthroscopy operative report (2023)', spec:'Riverside Orthopedics · 06/22/2023', pages:['scope1','scope2'], conf:.83,
+   why:['Not on the checklist, but a prior surgery on the same knee is usually needed for an arthroplasty second opinion.','Documents Grade III chondromalacia in 2023 — shows the cartilage history behind today\'s bone-on-bone finding.','Opt-in: nothing is added to the package unless you add it.'], state:'open'},
+];
+
+// ---------- State ----------
+let selected = {kind:'item', id:1};
+let interventions = 0;            // agent decisions the user changed
+const agentDecisions = items.reduce((n,i)=>n+i.pages.length,0) + suggestions.length; // page picks + suggestions
+let caseSent = false;
+
+// ---------- Queue ----------
+function renderQueue(){
+  const rows = [];
+  const mainProg = items.map(i=>i.status==='found'?'f':i.status==='partial'?'p':'m').join('');
+  const mainStatus = caseSent ? ['sent','Sent to nurse review'] : ['new','New documents'];
+  rows.push(rowHtml({name:kase.name, proc:kase.proc, prog:mainProg, docs:'2 of 3 facilities', oldest:'10 d · Lakeside PT', status:mainStatus}, 'openCase()'));
+  otherCases.forEach(c=>rows.push(rowHtml(c, "toast('Only the Alvarez case is built in this prototype')")));
+  document.getElementById('queueBody').innerHTML = rows.join('');
+}
+function rowHtml(c, onclick){
+  const done = (c.prog.match(/f/g)||[]).length;
+  return `<tr onclick="${onclick}"><td><b>${c.name}</b></td><td>${c.proc}</td>
+    <td><span class="prog">${[...c.prog].map(x=>`<i class="${x}"></i>`).join('')}</span>${done}/${c.prog.length} found</td>
+    <td>${c.docs}</td><td>${c.oldest}</td><td><span class="tag ${c.status[0]}">${c.status[1]}</span></td></tr>`;
+}
+function showQueue(){ renderQueue(); swap('queue'); }
+function swap(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('active', s.id===id)); }
+
+// ---------- Workspace ----------
+function openCase(){
+  document.getElementById('caseTitle').textContent = `${kase.name}, ${kase.age}`;
+  document.getElementById('caseMeta').textContent = `${kase.proc} · opened ${kase.opened}`;
+  document.getElementById('nurseName').textContent = kase.nurse;
+  renderAll(); swap('work');
+}
+function renderAll(){ renderChecklist(); renderCenter(); renderRight(); renderStat(); }
+
+function statusLabel(it){
+  if(it.accepted) return ['done','Accepted'];
+  if(it.followUpSent) return ['missing', it.status==='partial' ? 'Partial · follow-up sent' : 'Requested again'];
+  return [it.status, {found:'Found',partial:'Partial',missing:'Missing'}[it.status]];
+}
+function renderChecklist(){
+  document.getElementById('checklist').innerHTML = items.map(it=>{
+    const [cls,label] = statusLabel(it);
+    const sel = selected.kind==='item' && selected.id===it.id ? 'sel':'';
+    return `<div class="item ${sel}" onclick="select('item',${it.id})">
+      <div class="t">${it.title}</div><div class="d">${it.spec}</div>
+      <div class="row"><span class="st ${cls}">${label}</span><span class="pagecount">${it.pages.length ? it.pages.length+' pp.' : '0 pp.'}</span></div></div>`;
+  }).join('');
+  document.getElementById('suggestions').innerHTML = suggestions.map(s=>{
+    const sel = selected.kind==='sugg' && selected.id===s.id ? 'sel':'';
+    const st = s.state==='added' ? '<span class="st done">Added to package</span>' : s.state==='dismissed' ? '<span class="st" style="background:#eee;color:#777">Dismissed</span>' : '<span class="st suggest">Also relevant?</span>';
+    return `<div class="item suggestbox ${sel}" onclick="select('sugg','${s.id}')">
+      <div class="t">${s.title}</div><div class="d">${s.spec}</div>
+      <div class="row">${st}<span class="pagecount">${s.pages.length} pp.</span></div></div>`;
+  }).join('');
+}
+function current(){ return selected.kind==='item' ? items.find(i=>i.id===selected.id) : suggestions.find(s=>s.id===selected.id); }
+function select(kind,id){ selected={kind,id}; renderAll(); }
+
+function pageHtml(pid, removable){
+  const p = P[pid];
+  return `<div class="page ${p.faded?'faded':''}">
+    ${p.warn?`<div class="warn">${p.warn}</div>`:''}
+    <div class="lh"><span>${p.fac}</span><span>${p.doc} · p.${p.n}</span></div>
+    <div class="title">${p.title}</div>
+    <div class="body ${p.hand?'hand':''}">${p.lines.map((l,i)=>`<p>${p.hl.includes(i)?`<span class="hl">${l}</span>`:l}</p>`).join('')}</div>
+    <div class="foot"><span>${p.date}</span>${removable?`<button class="rm" onclick="removePage('${pid}')">Not this page</button>`:''}</div>
+  </div>`;
+}
+function renderCenter(){
+  const it = current(); const el = document.getElementById('center');
+  const docs = kase.received.map(d=>`${d.doc} ${d.fac} (${d.pages} pp., ${d.on})`).join(' · ');
+  let html = `<div class="hdr"><h2>${it.title}</h2><span class="src">${it.spec}</span></div>`;
+  if(it.pages.length){
+    html += `<div class="pages">${it.pages.map(p=>pageHtml(p, !it.accepted && it.state!=='added')).join('')}</div>`;
+  } else {
+    html += `<div class="empty">No pages matched this item in the documents received so far.<br><span style="font-size:12px">Received: ${docs}</span></div>`;
+  }
+  if(it.id===2){ html += `<div class="subhead">Excluded by agent (1)</div><div class="pages">${pageHtml('bronch',false)}</div>`; }
+  el.innerHTML = html;
+}
+function renderRight(){
+  const it = current(); const el = document.getElementById('right');
+  const isSugg = selected.kind==='sugg';
+  let html = `<h3>Agent rationale</h3><div class="card">`;
+  if(it.conf!=null){
+    html += `<div class="conf"><span>Confidence</span><div class="bar"><i class="${it.conf<.8?'med':''}" style="width:${it.conf*100}%"></i></div><span>${Math.round(it.conf*100)}%</span></div>`;
+  }
+  html += `<div class="why"><ul>${it.why.map(w=>`<li>${w}</li>`).join('')}</ul></div>`;
+  // actions
+  html += `<div class="actions">`;
+  if(isSugg){
+    if(it.state==='open'){ html += `<button class="btn ok" onclick="suggestAct('added')">Add to package</button><button class="btn ghost" onclick="suggestAct('dismissed')">Dismiss</button>`; }
+    else html += `<span class="note">${it.state==='added'?'Added. The nurse will see this as "added by records team, not on checklist".':'Dismissed. Logged as an intervention.'}</span>`;
+  } else if(it.status!=='missing' && !it.accepted){
+    html += `<button class="btn ok" onclick="accept()">Accept ${it.pages.length} page${it.pages.length>1?'s':''}</button>`;
+    if(it.status==='partial') html += `<span class="note">Accept what's here; the gap is handled below.</span>`;
+  } else if(it.accepted){
+    html += `<span class="note">Accepted. Pages will be filed under "${it.title}" in the package.</span>`;
+  }
+  html += `</div></div>`;
+  // follow-up
+  if(!isSugg && it.followup){
+    html += `<h3>Follow-up request</h3><div class="card"><div class="kv"><b>To</b><span>${it.followup.to}</span></div>
+      <div class="draft" style="margin-top:8px">${it.followup.body}</div>
+      <div class="actions">${it.followUpSent?`<span class="note">Sent today. Tracked in Cora as an open request.</span>`:`<button class="btn primary" onclick="sendFollowup()">Send follow-up</button><button class="btn ghost" onclick="toast('Editing the draft is not built in this prototype')">Edit</button>`}</div></div>`;
+  }
+  el.innerHTML = html;
+}
+function renderStat(){
+  document.getElementById('caseStat').textContent = `Agent decisions changed: ${interventions} of ${agentDecisions}`;
+}
+
+// ---------- Actions ----------
+function accept(){ current().accepted = true; renderAll(); toast('Accepted'); }
+function removePage(pid){
+  const it = current(); it.pages = it.pages.filter(p=>p!==pid); interventions++;
+  if(it.pages.length===0){ it.status='missing'; it.conf=null; }
+  renderAll(); toast('Page removed · logged as an intervention');
+}
+function sendFollowup(){ current().followUpSent = true; renderAll(); toast('Follow-up sent'); }
+function suggestAct(state){ const s=current(); s.state=state; if(state==='dismissed') interventions++; renderAll(); }
+
+function openSend(){
+  const accepted = items.filter(i=>i.accepted).length;
+  const pendingItems = items.filter(i=>!i.accepted);
+  const withFollowup = pendingItems.filter(i=>i.followUpSent).length;
+  const unresolved = pendingItems.filter(i=>!i.followUpSent && i.status!=='found' && i.status!=='partial');
+  const added = suggestions.filter(s=>s.state==='added').length;
+  const reviewedPages = items.reduce((n,i)=>n+(i.accepted?i.pages.length:0),0) + suggestions.reduce((n,s)=>n+(s.state==='added'?s.pages.length:0),0);
+  const totalPages = kase.received.reduce((n,d)=>n+d.pages,0);
+  document.getElementById('sendModalBody').innerHTML = `
+    <h2>Send to nurse review?</h2>
+    <div style="color:var(--muted)">${kase.name} · ${kase.proc}</div>
+    <div class="sum"><div><b>${accepted}/${items.length}</b><span>checklist items complete</span></div><div><b>${withFollowup}</b><span>gaps with follow-up sent</span></div><div><b>${added}</b><span>extra records added</span></div></div>
+    <ul>
+      <li>${reviewedPages} pages go to the nurse, out of ${totalPages} received. You did not have to read the rest.</li>
+      <li>You changed ${interventions} of ${agentDecisions} agent decisions on this case.</li>
+      ${pendingItems.filter(i=>!i.accepted && (i.status==='found'||i.status==='partial')).length ? `<li style="color:var(--partial)">${pendingItems.filter(i=>!i.accepted && (i.status==='found'||i.status==='partial')).map(i=>i.title).join(', ')}: not yet accepted. The nurse will see these as unverified.</li>`:''}
+      ${unresolved.length ? `<li style="color:var(--missing)">${unresolved.map(i=>i.title).join(', ')}: missing with no follow-up sent.</li>`:''}
+    </ul>
+    <div class="actions"><button class="btn primary" onclick="confirmSend()">Send to ${kase.nurse}</button><button class="btn ghost" onclick="closeSend()">Back</button></div>`;
+  document.getElementById('sendModal').classList.add('open');
+}
+function closeSend(){ document.getElementById('sendModal').classList.remove('open'); }
+function confirmSend(){ caseSent = true; closeSend(); showQueue(); toast('Sent to nurse review. Case marked in Cora.'); }
+
+let toastT; function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),2200); }
+
+renderQueue();
+</script>
+</body>
+</html>
