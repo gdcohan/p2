@@ -97,8 +97,11 @@
   .page .foot{display:flex;justify-content:space-between;align-items:center;margin-top:8px;font-size:11px;color:var(--muted)}
   .page .rm{background:none;border:1px solid var(--line);border-radius:6px;padding:2px 8px;font-size:11px;color:var(--muted)}
   .page .rm:hover{border-color:var(--missing);color:var(--missing)}
+  .page .rm.back:hover{border-color:var(--found);color:var(--found)}
+  .page.removed{opacity:.55}
   .page.faded{opacity:.75;filter:contrast(.8) sepia(.2)}
   .page .warn{position:absolute;top:8px;right:8px;background:var(--partial-soft);color:var(--partial);font-size:10px;font-weight:600;padding:2px 6px;border-radius:4px}
+  .removed-wrap .page{opacity:.55}
   .empty{border:1px dashed #c9c6bd;border-radius:10px;padding:28px;color:var(--muted);text-align:center}
   .subhead{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:18px 0 8px}
 
@@ -111,7 +114,7 @@
   .why{font-size:13px;color:#3a3f4b}
   .why li{margin-bottom:4px}
   .why ul{padding-left:18px;margin:0}
-  .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center}
   .btn{border:1px solid var(--line);background:#fff;border-radius:8px;padding:8px 12px;font-weight:600}
   .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
   .btn.ok{background:var(--found);color:#fff;border-color:var(--found)}
@@ -233,7 +236,9 @@ const suggestions = [
 
 // ---------- State ----------
 let selected = {kind:'item', id:1};
-let interventions = 0;            // agent decisions the user changed
+items.forEach(i=>i.removed=[]);   // page ids the user set aside; agent picks in i.pages stay intact
+const activePages = it => it.pages.filter(p=>!(it.removed||[]).includes(p));
+const interventions = () => items.reduce((n,i)=>n+i.removed.length,0) + suggestions.filter(s=>s.state==='dismissed').length;
 const agentDecisions = items.reduce((n,i)=>n+i.pages.length,0) + suggestions.length; // page picks + suggestions
 let caseSent = false;
 
@@ -278,10 +283,12 @@ function openCase(){
 }
 function renderAll(){ renderChecklist(); renderCenter(); renderRight(); renderStat(); }
 
+function effStatus(it){ return (it.status!=='missing' && activePages(it).length===0) ? 'missing' : it.status; }
 function statusLabel(it){
   if(it.accepted) return ['done','Accepted'];
   if(it.followUpSent) return ['missing', it.status==='partial' ? 'Partial · follow-up sent' : 'Requested again'];
-  return [it.status, {found:'Found',partial:'Partial',missing:'Missing'}[it.status]];
+  const st = effStatus(it);
+  return [st, {found:'Found',partial:'Partial',missing:'Missing'}[st]];
 }
 function renderChecklist(){
   document.getElementById('checklist').innerHTML = items.map(it=>{
@@ -289,7 +296,7 @@ function renderChecklist(){
     const sel = selected.kind==='item' && selected.id===it.id ? 'sel':'';
     return `<div class="item ${sel}" onclick="select('item',${it.id})">
       <div class="t">${it.title}</div><div class="d">${it.spec}</div>
-      <div class="row"><span class="st ${cls}">${label}</span><span class="pagecount">${it.pages.length ? it.pages.length+' pp.' : '0 pp.'}</span></div></div>`;
+      <div class="row"><span class="st ${cls}">${label}</span><span class="pagecount">${activePages(it).length} pp.</span></div></div>`;
   }).join('');
   document.getElementById('suggestions').innerHTML = suggestions.map(s=>{
     const sel = selected.kind==='sugg' && selected.id===s.id ? 'sel':'';
@@ -302,26 +309,36 @@ function renderChecklist(){
 function current(){ return selected.kind==='item' ? items.find(i=>i.id===selected.id) : suggestions.find(s=>s.id===selected.id); }
 function select(kind,id){ selected={kind,id}; renderAll(); }
 
-function pageHtml(pid, removable){
+function pageHtml(pid, action){
   const p = P[pid];
+  const btn = action==='remove' ? `<button class="rm" onclick="removePage('${pid}')">Not this page</button>`
+            : action==='putback' ? `<button class="rm back" onclick="putBack('${pid}')">Put back</button>` : '';
   return `<div class="page ${p.faded?'faded':''}">
     ${p.warn?`<div class="warn">${p.warn}</div>`:''}
     <div class="lh"><span>${p.fac}</span><span>${p.doc} · p.${p.n}</span></div>
     <div class="title">${p.title}</div>
     <div class="body ${p.hand?'hand':''}">${p.lines.map((l,i)=>`<p>${p.hl.includes(i)?`<span class="hl">${l}</span>`:l}</p>`).join('')}</div>
-    <div class="foot"><span>${p.date}</span>${removable?`<button class="rm" onclick="removePage('${pid}')">Not this page</button>`:''}</div>
+    <div class="foot"><span>${p.date}</span>${btn}</div>
   </div>`;
 }
 function renderCenter(){
   const it = current(); const el = document.getElementById('center');
+  const isSugg = selected.kind==='sugg';
   const docs = kase.received.map(d=>`${d.doc} ${d.fac} (${d.pages} pp., ${d.on})`).join(' · ');
+  const active = isSugg ? it.pages : activePages(it);
+  const locked = isSugg ? it.state!=='open' : !!it.accepted;
   let html = `<div class="hdr"><h2>${it.title}</h2><span class="src">${it.spec}</span></div>`;
-  if(it.pages.length){
-    html += `<div class="pages">${it.pages.map(p=>pageHtml(p, !it.accepted && it.state!=='added')).join('')}</div>`;
+  if(active.length){
+    html += `<div class="pages">${active.map(p=>pageHtml(p, locked||isSugg ? '' : 'remove')).join('')}</div>`;
   } else {
-    html += `<div class="empty">No pages matched this item in the documents received so far.<br><span style="font-size:12px">Received: ${docs}</span></div>`;
+    html += (!isSugg && it.removed.length)
+      ? `<div class="empty">You set aside every page the agent picked. Put one back, or send a follow-up.</div>`
+      : `<div class="empty">No pages matched this item in the documents received so far.<br><span style="font-size:12px">Received: ${docs}</span></div>`;
   }
-  if(it.id===2){ html += `<div class="subhead">Excluded by agent (1)</div><div class="pages">${pageHtml('bronch',false)}</div>`; }
+  if(!isSugg && it.removed.length){
+    html += `<div class="subhead">Set aside by you (${it.removed.length})</div><div class="pages">${it.removed.map(p=>`<div class="removed-wrap">${pageHtml(p, locked ? '' : 'putback')}</div>`).join('')}</div>`;
+  }
+  if(it.id===2){ html += `<div class="subhead">Excluded by agent (1)</div><div class="pages">${pageHtml('bronch','')}</div>`; }
   el.innerHTML = html;
 }
 function renderRight(){
@@ -336,12 +353,15 @@ function renderRight(){
   html += `<div class="actions">`;
   if(isSugg){
     if(it.state==='open'){ html += `<button class="btn ok" onclick="suggestAct('added')">Add to package</button><button class="btn ghost" onclick="suggestAct('dismissed')">Dismiss</button>`; }
-    else html += `<span class="note">${it.state==='added'?'Added. The nurse will see this as "added by records team, not on checklist".':'Dismissed. Logged as an intervention.'}</span>`;
-  } else if(it.status!=='missing' && !it.accepted){
-    html += `<button class="btn ok" onclick="accept()">Accept ${it.pages.length} page${it.pages.length>1?'s':''}</button>`;
-    if(it.status==='partial') html += `<span class="note">Accept what's here; the gap is handled below.</span>`;
+    else html += `<span class="note">${it.state==='added'?'Added. The nurse will see this as "added by records team, not on checklist".':'Dismissed. Logged as an intervention.'}</span><button class="btn ghost" onclick="suggestAct('open')">Undo</button>`;
   } else if(it.accepted){
-    html += `<span class="note">Accepted. Pages will be filed under "${it.title}" in the package.</span>`;
+    html += `<span class="note">Accepted. Pages will be filed under "${it.title}" in the package.</span><button class="btn ghost" onclick="unaccept()">Undo</button>`;
+  } else if(activePages(it).length){
+    const n = activePages(it).length;
+    html += `<button class="btn ok" onclick="accept()">Accept ${n} page${n>1?'s':''}</button>`;
+    if(it.status==='partial') html += `<span class="note">Accept what's here; the gap is handled below.</span>`;
+  } else if(it.removed.length){
+    html += `<span class="note">All agent-picked pages set aside. Put one back to accept, or send a follow-up.</span>`;
   }
   html += `</div></div>`;
   // follow-up
@@ -353,18 +373,16 @@ function renderRight(){
   el.innerHTML = html;
 }
 function renderStat(){
-  document.getElementById('caseStat').textContent = `Agent decisions changed: ${interventions} of ${agentDecisions}`;
+  document.getElementById('caseStat').textContent = `Agent decisions changed: ${interventions()} of ${agentDecisions}`;
 }
 
 // ---------- Actions ----------
 function accept(){ current().accepted = true; renderAll(); toast('Accepted'); }
-function removePage(pid){
-  const it = current(); it.pages = it.pages.filter(p=>p!==pid); interventions++;
-  if(it.pages.length===0){ it.status='missing'; it.conf=null; }
-  renderAll(); toast('Page removed · logged as an intervention');
-}
+function unaccept(){ current().accepted = false; renderAll(); }
+function removePage(pid){ current().removed.push(pid); renderAll(); toast('Set aside · logged as an intervention'); }
+function putBack(pid){ const it=current(); it.removed = it.removed.filter(p=>p!==pid); renderAll(); toast('Put back'); }
 function sendFollowup(){ current().followUpSent = true; renderAll(); toast('Follow-up sent'); }
-function suggestAct(state){ const s=current(); s.state=state; if(state==='dismissed') interventions++; renderAll(); }
+function suggestAct(state){ current().state=state; renderAll(); }
 
 function openSend(){
   const accepted = items.filter(i=>i.accepted).length;
@@ -372,7 +390,7 @@ function openSend(){
   const withFollowup = pendingItems.filter(i=>i.followUpSent).length;
   const unresolved = pendingItems.filter(i=>!i.followUpSent && i.status!=='found' && i.status!=='partial');
   const added = suggestions.filter(s=>s.state==='added').length;
-  const reviewedPages = items.reduce((n,i)=>n+(i.accepted?i.pages.length:0),0) + suggestions.reduce((n,s)=>n+(s.state==='added'?s.pages.length:0),0);
+  const reviewedPages = items.reduce((n,i)=>n+(i.accepted?activePages(i).length:0),0) + suggestions.reduce((n,s)=>n+(s.state==='added'?s.pages.length:0),0);
   const totalPages = kase.received.reduce((n,d)=>n+d.pages,0);
   document.getElementById('sendModalBody').innerHTML = `
     <h2>Send to nurse review?</h2>
@@ -380,7 +398,7 @@ function openSend(){
     <div class="sum"><div><b>${accepted}/${items.length}</b><span>checklist items complete</span></div><div><b>${withFollowup}</b><span>gaps with follow-up sent</span></div><div><b>${added}</b><span>extra records added</span></div></div>
     <ul>
       <li>${reviewedPages} pages go to the nurse, out of ${totalPages} received. You did not have to read the rest.</li>
-      <li>You changed ${interventions} of ${agentDecisions} agent decisions on this case.</li>
+      <li>You changed ${interventions()} of ${agentDecisions} agent decisions on this case.</li>
       ${pendingItems.filter(i=>!i.accepted && (i.status==='found'||i.status==='partial')).length ? `<li style="color:var(--partial)">${pendingItems.filter(i=>!i.accepted && (i.status==='found'||i.status==='partial')).map(i=>i.title).join(', ')}: not yet accepted. The nurse will see these as unverified.</li>`:''}
       ${unresolved.length ? `<li style="color:var(--missing)">${unresolved.map(i=>i.title).join(', ')}: missing with no follow-up sent.</li>`:''}
     </ul>

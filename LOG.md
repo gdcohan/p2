@@ -17,6 +17,7 @@
 - Stand-alone web app alongside Cora rather than a Cora change, because Cora changes take weeks.
 - Three checklist statuses only (Found / Partial / Missing) plus Accepted. No confidence thresholds exposed as settings.
 - "Not this page" and "Dismiss suggestion" count as interventions; "Accept" and "Add" do not. That is the measurement Poppy cares about, surfaced in the case bar.
+- Every action on an agent decision is reversible: set-aside pages move to a "Set aside by you" strip with "Put back", Accept has Undo, Add/Dismiss on a suggestion has Undo. The agent's original picks are never destroyed, and the intervention count reflects current state, so putting a page back un-counts it. Sending a follow-up is the one non-reversible action, because a fax cannot be un-sent.
 - Show the agent's rationale as short plain-English bullets next to the pages, not a score alone. The bet is that rationale plus source page is what earns trust.
 - Show one excluded page (bronchitis) on the ortho consult item so the demo makes the "relevance filtering" point visible.
 - The "also relevant" suggestion is a separate section, visually distinct (dashed purple), and strictly opt-in. Nothing is added to the package unless the user adds it.
